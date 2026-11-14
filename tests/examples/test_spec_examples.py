@@ -66,7 +66,7 @@ def test_every_path_has_an_example():
 
 
 def labels(table, column):
-    return diversity_lib.get_data().tables[table].by_name[column]["labels"]
+    return diversity_lib.get_data().tables[table].dictionary(column)
 
 
 @pytest.mark.parametrize(
@@ -99,7 +99,7 @@ def resolve(spec, parameter):
 def test_spec_parameters_are_the_tables_filters(route, table):
     spec = load_spec()
     names = {resolve(spec, p)["name"] for p in spec["paths"][route]["parameters"]}
-    expected = set(diversity_lib.get_data().tables[table].keys)
+    expected = set(diversity_lib.keys(diversity_lib.get_data().tables[table]))
     expected |= {"page_number", "page_size"}
     if "/counts/" in route:
         expected.add("by")
@@ -112,7 +112,7 @@ def test_spec_parameters_are_the_tables_filters(route, table):
 def test_spec_by_lists_the_tables_columns(parameter, table):
     description = load_spec()["components"]["parameters"][parameter]["description"]
     listed = re.findall(r"`(\w+)`", description)
-    assert listed == diversity_lib.get_data().tables[table].keys
+    assert listed == diversity_lib.keys(diversity_lib.get_data().tables[table])
 
 
 @pytest.mark.parametrize(

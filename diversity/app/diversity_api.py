@@ -76,14 +76,14 @@ def make_handler(routes):
 
 def parse_value(table, column, value):
     """A query value for one of the table's key columns, checked for its type"""
-    meta = table.by_name[column]
+    type_ = table.type(column)
     if column == "agency_id":
         return parse_agency_id(column, value)
-    if meta["type"] == "integer":
+    if type_ == "integer":
         return parse_year(column, value)
-    if meta["type"] == "logical":
+    if type_ == "logical":
         return parse_logical(column, value)
-    return parse_level(column, value, meta["labels"])
+    return parse_level(column, value, table.dictionary(column))
 
 
 def parse_filters(table, query):
@@ -91,7 +91,7 @@ def parse_filters(table, query):
     Checks the query's filters, which are the table's key columns.
 
     Returns:
-        tuple of (column, code), as Table.selection() takes it
+        tuple of ("eq", column, code), as torgucols' Table.select() takes it
         dict of the filters as given, for the links
 
     Raises:
@@ -100,12 +100,12 @@ def parse_filters(table, query):
     """
     filters = []
     link_params = {}
-    for column in table.keys:
+    for column in lib.keys(table):
         if column in query:
             code = table.code(column, parse_value(table, column, query[column]))
             if code is None:
                 raise NotFound("No matching records")
-            filters.append((column, code))
+            filters.append(("eq", column, code))
             link_params[column] = query[column]
     return tuple(filters), link_params
 
@@ -115,7 +115,7 @@ def rows_route(name):
 
     def route(path, query):
         table = lib.get_data().tables[name]
-        check_allowed(query, table.keys + PAGE_PARAMS)
+        check_allowed(query, lib.keys(table) + PAGE_PARAMS)
         filters, link_params = parse_filters(table, query)
         records, aux = lib.get_rows(table, filters, page_parameters(query))
         return Reply(records, aux, link_params)
@@ -128,7 +128,7 @@ def counts_route(name):
 
     def route(path, query):
         table = lib.get_data().tables[name]
-        check_allowed(query, ["by"] + table.keys + PAGE_PARAMS)
+        check_allowed(query, ["by"] + lib.keys(table) + PAGE_PARAMS)
         dimensions = lib.parse_by(table, query.get("by"))
         filters, link_params = parse_filters(table, query)
         records, aux = lib.get_counts(
@@ -149,7 +149,7 @@ def agency_practice(path, query):
     code = table.code("agency_id", agency_id)
     if code is None:
         raise not_found
-    record = lib.get_row(table, (("year", year), ("agency_id", code)))
+    record = lib.get_row(table, (("eq", "year", year), ("eq", "agency_id", code)))
     if record is None:
         raise not_found
     return Reply([record], {})

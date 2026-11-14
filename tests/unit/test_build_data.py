@@ -11,7 +11,7 @@ from .conftest import COLUMNS, LEVELS, ROWS, write_csv, write_export
 
 @pytest.fixture
 def meta(fixture_build):
-    with open(os.path.join(fixture_build, "labels.json"), encoding="utf-8") as f:
+    with open(os.path.join(fixture_build, "torgucols.json"), encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -37,7 +37,8 @@ def replaced(table, row, position, value):
     return {table: rows}
 
 
-def test_labels(meta):
+def test_manifest(meta):
+    assert meta["format"] == 1
     assert meta["source"]["version"] == "0.0.0"
     assert meta["byteorder"] in ("little", "big")
     tables = meta["tables"]
@@ -46,13 +47,13 @@ def test_labels(meta):
         "applicant": 3,
         "agency_practice": 3,
     }
-    assert tables["officer"]["weight"] == "officer_count"
-    assert tables["agency_practice"]["weight"] is None
+    assert tables["officer"]["meta"]["weight"] == "officer_count"
+    assert tables["agency_practice"]["meta"]["weight"] is None
     by_name = {c["name"]: c for c in tables["officer"]["columns"]}
-    assert by_name["officer_race"]["labels"] == ["White", "Asian", "Other"]
-    assert by_name["agency_id"]["labels"] == ["NJLEA0001", "NJLEA0002"]
-    assert "labels" not in by_name["year"]
-    assert "labels" not in by_name["promoted"]
+    assert by_name["officer_race"]["dictionary"] == ["White", "Asian", "Other"]
+    assert by_name["agency_id"]["dictionary"] == ["NJLEA0001", "NJLEA0002"]
+    assert "dictionary" not in by_name["year"]
+    assert "dictionary" not in by_name["promoted"]
 
 
 def test_codes(fixture_build):
@@ -68,7 +69,7 @@ def test_codes(fixture_build):
 
 def test_every_column_has_a_file(fixture_build):
     files = set(os.listdir(fixture_build))
-    expected = {"labels.json"} | {
+    expected = {"torgucols.json"} | {
         f"{table}.{name}.i32" for table, cols in COLUMNS.items() for name, _ in cols
     }
     assert files == expected

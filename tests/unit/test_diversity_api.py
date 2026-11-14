@@ -364,10 +364,10 @@ def test_repeated_requests_give_the_same_reply():
 def test_wrong_byte_order_is_refused(tmp_path, fixture_build, monkeypatch):
     data_dir = tmp_path / "data"
     shutil.copytree(fixture_build, data_dir)
-    with open(os.path.join(fixture_build, "labels.json"), encoding="utf-8") as f:
+    with open(os.path.join(fixture_build, "torgucols.json"), encoding="utf-8") as f:
         meta = json.load(f)
     meta["byteorder"] = "big" if sys.byteorder == "little" else "little"
-    (data_dir / "labels.json").write_text(json.dumps(meta), encoding="utf-8")
+    (data_dir / "torgucols.json").write_text(json.dumps(meta), encoding="utf-8")
     monkeypatch.setenv("DATA_DIR", str(data_dir))
     status, _ = call("/officers")
     assert status == 500

@@ -3,3 +3,4 @@ pytest-mock
 pyyaml
 boto3
 requests
+torgucols @ https://github.com/tor-gu/torgucols/releases/download/v0.1.0/torgucols-0.1.0-py3-none-any.whl

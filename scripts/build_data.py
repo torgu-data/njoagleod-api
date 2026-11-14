@@ -7,32 +7,21 @@ Reads data/ as written by scripts/export_data.R (<table>.csv.gz, columns.csv,
 levels.csv, SOURCE) and writes diversity/data/ under the repo root. Only the
 standard library is used.
 
-Every column is one file of int32s, <table>.<column>.i32, so a request loads only
-the columns it uses and the cold start doesn't parse the tables:
-
-  integer     the value (year, and the count columns)
-  logical     1 FALSE, 2 TRUE
-  factor      position in the column's levels, from 1
-  character   position in the column's sorted distinct values, from 1 (agency_id)
-
-0 means null, and codes sort in the API's order: declared levels, FALSE before
-TRUE, with null handled by the reader. labels.json has what's needed to read them:
-
-  {"byteorder": ..., "source": {...},
-   "tables": {<table>: {"rows": n, "weight": <count column or null>,
-                        "columns": [{"name": ..., "type": ..., "labels": [...]}]}}}
-
-(labels only for factor and character columns.)
+The output is a torgucols store (github.com/tor-gu/torgucols): one int32 file per
+column, so a request loads only the columns it uses and the cold start doesn't
+parse the tables. Factor and character columns (agency_id) are stored as codes
+whose order is the API's: declared levels, FALSE before TRUE, null last. Each
+table's meta has its weight, the count column (None: one row per key).
 """
 
-import array
 import csv
 import gzip
-import json
 import os
 import re
 import sys
 from collections import Counter, defaultdict
+
+import torgucols
 
 OUT = os.path.join("diversity", "data")
 
@@ -45,7 +34,6 @@ TABLES = {
 PRACTICE_KEY = ["year", "agency_id"]
 
 AGENCY_ID = re.compile(r"^NJLEA[0-9]{4}$")
-LOGICALS = {"": 0, "FALSE": 1, "TRUE": 2}
 
 
 class BuildError(Exception):
@@ -66,51 +54,20 @@ def read_source(path):
         return dict(line.rstrip("\n").split("=", 1) for line in f if "=" in line)
 
 
-def encode_integer(name, values):
-    try:
-        return [int(v) if v != "" else 0 for v in values], None
-    except ValueError as e:
-        raise BuildError(f"{name}: {e}") from None
-
-
-def encode_logical(name, values):
-    try:
-        return [LOGICALS[v] for v in values], None
-    except KeyError as e:
-        raise BuildError(f"{name}: {e.args[0]!r} is not a logical") from None
-
-
-def encode_factor(name, values, levels):
-    codes = {level: i for i, level in enumerate(levels, 1)}
-    codes[""] = 0
-    try:
-        return [codes[v] for v in values], levels
-    except KeyError as e:
-        raise BuildError(f"{name}: {e.args[0]!r} is not a level ({levels})") from None
-
-
-def encode_character(name, values):
-    labels = sorted(set(values) - {""})
-    return encode_factor(name, values, labels)
-
-
 def encode_column(name, type_, values, levels):
-    """The column's int32 codes, and its labels (None if it has none)"""
-    if type_ == "integer":
-        return encode_integer(name, values)
-    if type_ == "logical":
-        return encode_logical(name, values)
-    if type_ == "factor":
-        if not levels:
-            raise BuildError(f"{name}: no levels in levels.csv")
-        return encode_factor(name, values, levels)
-    if type_ == "character":
-        return encode_character(name, values)
-    raise BuildError(f"{name}: unknown column type {type_!r}")
+    """The column, encoded by torgucols ({name, type, codes, dictionary})"""
+    if type_ == "factor" and not levels:
+        raise BuildError(f"{name}: no levels in levels.csv")
+    try:
+        column = torgucols.encode_column(name, type_, values, levels)
+    except torgucols.EncodeError as e:
+        raise BuildError(str(e)) from None
+    column["name"] = name.split(".", 1)[1]
+    return column
 
 
 def read_table(data_dir, table, types, levels):
-    """{"columns": [{name, type, labels, codes}], "rows": n}, as read from the export"""
+    """{"columns": [encoded columns], "rows": n}, as read from the export"""
     names = [c for c, _ in types]
     header, rows = read_csv(os.path.join(data_dir, f"{table}.csv.gz"))
     if header != names:
@@ -118,12 +75,12 @@ def read_table(data_dir, table, types, levels):
     for i, row in enumerate(rows):
         if len(row) != len(names):
             raise BuildError(f"{table} row {i + 1}: {len(row)} fields")
-    columns = []
-    for j, (name, type_) in enumerate(types):
-        codes, labels = encode_column(
+    columns = [
+        encode_column(
             f"{table}.{name}", type_, [r[j] for r in rows], levels.get((table, name))
         )
-        columns.append({"name": name, "type": type_, "labels": labels, "codes": codes})
+        for j, (name, type_) in enumerate(types)
+    ]
     return {"columns": columns, "rows": len(rows)}
 
 
@@ -153,9 +110,10 @@ def check_table(name, table, weight):
     for required in ("year", "agency_id"):
         if required not in columns:
             raise BuildError(f"{name}: no {required} column")
-        if 0 in columns[required]["codes"]:
+        null = torgucols.INT32_MIN if columns[required]["type"] == "integer" else 0
+        if null in columns[required]["codes"]:
             raise BuildError(f"{name}: null {required}")
-    for agency_id in columns["agency_id"]["labels"]:
+    for agency_id in columns["agency_id"]["dictionary"]:
         if not AGENCY_ID.match(agency_id):
             raise BuildError(f"{name}: bad agency_id {agency_id!r}")
     if weight is not None:
@@ -172,44 +130,18 @@ def check_table(name, table, weight):
         raise BuildError(f"{name}: duplicate keys {duplicates[:5]}")
 
 
-def write_i32(path, values):
-    with open(path, "wb") as f:
-        array.array("i", values).tofile(f)
-
-
 def build(data_dir, root):
     tables, source = read_export(data_dir)
     for name, weight in TABLES.items():
         check_table(name, tables[name], weight)
-    out_dir = os.path.join(root, OUT)
-    os.makedirs(out_dir, exist_ok=True)
-    for entry in os.listdir(out_dir):
-        if entry.endswith(".i32") or entry == "labels.json":
-            os.remove(os.path.join(out_dir, entry))
-    meta = {}
-    for name, table in tables.items():
-        columns = []
-        for column in table["columns"]:
-            write_i32(
-                os.path.join(out_dir, f"{name}.{column['name']}.i32"), column["codes"]
-            )
-            entry = {"name": column["name"], "type": column["type"]}
-            if column["labels"] is not None:
-                entry["labels"] = column["labels"]
-            columns.append(entry)
-        meta[name] = {
-            "rows": table["rows"],
-            "weight": TABLES[name],
-            "columns": columns,
-        }
-    with open(os.path.join(out_dir, "labels.json"), "w", encoding="utf-8") as f:
-        json.dump(
-            {"byteorder": sys.byteorder, "source": source, "tables": meta},
-            f,
-            ensure_ascii=False,
-            separators=(",", ":"),
-        )
-    return out_dir
+    return torgucols.write(
+        os.path.join(root, OUT),
+        {
+            name: {"columns": table["columns"], "meta": {"weight": TABLES[name]}}
+            for name, table in tables.items()
+        },
+        source,
+    )
 
 
 def main(argv):

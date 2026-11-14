@@ -255,7 +255,7 @@ installed into a temporary library) and build the Lambda’s data:
     make export_data REF=v2.0.0
     make data
 
-`diversity/data/` holds one file of int32s per column and `labels.json`,
+`diversity/data/` is a [torgucols](https://github.com/tor-gu/torgucols) store: one file of int32s per column and a manifest,
 so a request loads only the columns it uses. It is not committed; CI
 builds it with `make data` before testing and before `sam build`.
 
