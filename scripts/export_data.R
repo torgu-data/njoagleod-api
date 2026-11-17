@@ -4,7 +4,7 @@
 #
 # Usage: Rscript scripts/export_data.R <git-ref> [out-dir] [expected-dir]
 #
-# Installs tor-gu/njoagleod at <git-ref> (e.g. v2.0.0) into a temporary library,
+# Installs torgu-data/njoagleod at <git-ref> (e.g. v2.0.0) into a temporary library,
 # with its hard dependencies, and writes to out-dir (default: data):
 #   <table>.csv.gz  one per table, in R's row order (NA is an empty field; a logical
 #                   is TRUE or FALSE)
@@ -46,7 +46,7 @@ if (nzchar(local_git)) {
   )
 } else {
   remotes::install_github(
-    "tor-gu/njoagleod",
+    "torgu-data/njoagleod",
     ref = ref, lib = lib, upgrade = "never", dependencies = NA, quiet = TRUE
   )
 }

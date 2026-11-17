@@ -1,2 +1,2 @@
 # Bundled into the function by sam build
-torgucols @ https://github.com/tor-gu/torgucols/releases/download/v0.1.0/torgucols-0.1.0-py3-none-any.whl
+torgucols @ https://github.com/torgu-data/torgucols/releases/download/v0.1.0/torgucols-0.1.0-py3-none-any.whl

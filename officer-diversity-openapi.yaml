@@ -7,7 +7,7 @@ info:
 
     A cleaned-up copy of the NJ Attorney General's Law Enforcement Officer
     Diversity data (https://www.njoag.gov/policerecruiting/), as published in the
-    [njoagleod data package for R](https://github.com/tor-gu/njoagleod) (version
+    [njoagleod data package for R](https://github.com/torgu-data/njoagleod) (version
     2.0.0). Officers are covered for 2021 to 2025; applicants and agency practices
     for 2022 to 2025. Field names and values are the same as in the R package.
 
@@ -41,7 +41,7 @@ info:
     ## Agencies
 
     Records identify agencies by `agency_id` only: the agency's identifier in
-    [njlea](https://github.com/tor-gu/njlea), a registry of NJ law enforcement
+    [njlea](https://github.com/torgu-data/njlea), a registry of NJ law enforcement
     agencies (e.g. `NJLEA0199` is Newark PD). Agency names, counties, levels and
     functions, and the municipalities each agency serves, come from the njlea API
     ([njlea-api](https://tor-gu.com/apis/njlea.html), at `/nj/lea/*`): join on

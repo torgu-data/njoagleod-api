@@ -7,7 +7,7 @@ Reads data/ as written by scripts/export_data.R (<table>.csv.gz, columns.csv,
 levels.csv, SOURCE) and writes diversity/data/ under the repo root. Only the
 standard library is used.
 
-The output is a torgucols store (github.com/tor-gu/torgucols): one int32 file per
+The output is a torgucols store (github.com/torgu-data/torgucols): one int32 file per
 column, so a request loads only the columns it uses and the cold start doesn't
 parse the tables. Factor and character columns (agency_id) are stored as codes
 whose order is the API's: declared levels, FALSE before TRUE, null last. Each

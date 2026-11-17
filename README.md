@@ -4,7 +4,7 @@
 This is the source code for the NJ OAG Law Enforcement Officer Diversity
 API deployed at `api.tor-gu.com/nj/officer_diversity/`.
 
-It serves [njoagleod](https://github.com/tor-gu/njoagleod), a cleaned-up
+It serves [njoagleod](https://github.com/torgu-data/njoagleod), a cleaned-up
 copy of the NJ Attorney General’s [Law Enforcement Officer
 Diversity](https://www.njoag.gov/policerecruiting/) data: officers for
 2021 to 2025, and applicants and agency hiring and promotion practices
@@ -236,10 +236,10 @@ function serves every route, with the data packaged in it. A deployment
 has three parts:
 
 1.  The lambda layer
-    [layer_torguapi](https://github.com/tor-gu/layer_torguapi) (version
+    [layer_torguapi](https://github.com/torgu-data/layer_torguapi) (version
     11 or later), which needs to be deployed separately.
 2.  The data: CSV exports of a tagged
-    [njoagleod](https://github.com/tor-gu/njoagleod) release, committed
+    [njoagleod](https://github.com/torgu-data/njoagleod) release, committed
     in `data/`, and built into `diversity/data/` by `make data`.
 3.  The Lambda and API Gateway, defined in `template.yaml`.
 
@@ -255,7 +255,7 @@ installed into a temporary library) and build the Lambda’s data:
     make export_data REF=v2.0.0
     make data
 
-`diversity/data/` is a [torgucols](https://github.com/tor-gu/torgucols) store: one file of int32s per column and a manifest,
+`diversity/data/` is a [torgucols](https://github.com/torgu-data/torgucols) store: one file of int32s per column and a manifest,
 so a request loads only the columns it uses. It is not committed; CI
 builds it with `make data` before testing and before `sam build`.
 
@@ -299,7 +299,7 @@ Replace the `TorguapiLayerXXX` params with the values derived from the
 The `ApiRoot` value is used only for generating the values in `"links"`
 in the JSON reply. On `api.tor-gu.com`, the relationship between the
 publicly facing API URL and the API Gateway endpoints is configured in
-[torgu-api-cloudfront](https://github.com/tor-gu/torgu-api-cloudfront).
+[torgu-api-cloudfront](https://github.com/torgu-data/torgu-api-cloudfront).
 
 To deploy a second environment alongside the first, give it a resource
 name prefix (I use `dev-`) with the `EnvPrefix` template parameter.
